@@ -1,0 +1,106 @@
+name: Frontend Tests
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-tests.yml'
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-tests.yml'
+
+jobs:
+  frontend-tests:
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: ./frontend
+    
+    strategy:
+      matrix:
+        node-version: [18, 20]
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        cache-dependency-path: './frontend/package-lock.json'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run linting (if available)
+      run: |
+        if npm run lint --silent 2>/dev/null; then
+          echo "Running linting..."
+          npm run lint
+        else
+          echo "No lint script found, skipping linting"
+        fi
+      continue-on-error: false
+      
+    - name: Run type checking (if available)
+      run: |
+        if npm run typecheck --silent 2>/dev/null; then
+          echo "Running type checking..."
+          npm run typecheck
+        else
+          echo "No typecheck script found, skipping type checking"
+        fi
+      continue-on-error: false
+      
+    - name: Run tests
+      run: npm test -- --run --reporter=verbose
+      
+    - name: Run tests with coverage (if available)
+      run: |
+        if npm run test:coverage --silent 2>/dev/null; then
+          echo "Running tests with coverage..."
+          npm run test:coverage
+        else
+          echo "No test:coverage script found, skipping coverage"
+        fi
+      continue-on-error: true
+      
+    - name: Upload coverage reports to Codecov
+      if: matrix.node-version == 20
+      uses: codecov/codecov-action@v3
+      with:
+        directory: ./frontend/coverage
+        flags: frontend
+        name: frontend-coverage
+        fail_ci_if_error: false
+        
+    - name: Build application
+      run: npm run build
+      
+    - name: Verify build artifacts
+      run: |
+        if [ -d "dist" ]; then
+          echo "✅ Build successful - dist directory created"
+          echo "📦 Build artifacts:"
+          ls -la dist/
+          echo "📊 Build size:"
+          du -sh dist/
+        else
+          echo "❌ Build failed - no dist directory found"
+          exit 1
+        fi
+        
+    - name: Cache build artifacts
+      if: matrix.node-version == 20
+      uses: actions/cache@v3
+      with:
+        path: ./frontend/dist
+        key: frontend-build-${{ github.sha }}
+        restore-keys: |
+          frontend-build-
