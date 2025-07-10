@@ -32,7 +32,8 @@
       "Bash(npm test:*)",
       "Bash(mv:*)",
       "Bash(find:*)",
-      "Bash(docker compose:*)"
+      "Bash(docker compose:*)",
+      "Bash(npx jest:*)"
     ],
     "deny": []
   }
