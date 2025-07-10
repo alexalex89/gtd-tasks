@@ -1,0 +1,147 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+      sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    @apply bg-slate-50 text-slate-800;
+    line-height: 1.6;
+  }
+
+  button, input, textarea, select {
+    font-family: inherit;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-gradient-to-r from-primary-500 to-primary-600 text-white px-6 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200;
+  }
+  
+  .btn-secondary {
+    @apply bg-slate-100 text-slate-600 px-4 py-2 rounded-lg font-medium hover:bg-slate-200 transition-colors duration-200;
+  }
+  
+  /* Modal scroll lock utility */
+  .modal-open {
+    overflow: hidden !important;
+    position: fixed !important;
+    width: 100% !important;
+    height: 100% !important;
+  }
+  
+  .task-card {
+    @apply bg-white border border-slate-200 rounded-lg p-4 mb-3 transition-all duration-200 cursor-pointer select-none relative hover:shadow-md hover:-translate-y-0.5 hover:border-indigo-200;
+  }
+  
+  .task-card-dark {
+    @apply bg-slate-700 border border-slate-600 rounded-lg p-4 mb-3 transition-all duration-200 cursor-pointer select-none relative hover:shadow-md hover:-translate-y-0.5 hover:border-indigo-500;
+  }
+  
+  .task-card-dragging {
+    @apply rotate-3 shadow-xl cursor-grabbing z-50;
+  }
+  
+  .task-card-completed {
+    @apply opacity-70;
+  }
+}
+
+.react-datepicker-wrapper {
+  width: 100%;
+}
+
+.react-datepicker__input-container input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--gray-300);
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.2s ease;
+}
+
+.react-datepicker__input-container input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.react-datepicker {
+  border: 1px solid var(--gray-200);
+  border-radius: 8px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.react-datepicker__header {
+  background-color: var(--primary-color);
+  border-bottom: 1px solid var(--gray-200);
+  border-radius: 8px 8px 0 0;
+}
+
+.react-datepicker__current-month {
+  color: white;
+  font-weight: 600;
+}
+
+.react-datepicker__navigation {
+  top: 13px;
+}
+
+.react-datepicker__navigation--previous {
+  border-right-color: white;
+}
+
+.react-datepicker__navigation--next {
+  border-left-color: white;
+}
+
+.react-datepicker__day-name {
+  color: var(--gray-600);
+  font-weight: 500;
+}
+
+.react-datepicker__day--selected {
+  background-color: var(--primary-color);
+}
+
+.react-datepicker__day--selected:hover {
+  background-color: var(--secondary-color);
+}
+
+.react-datepicker__day:hover {
+  background-color: var(--gray-100);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--gray-300) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--gray-300);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--gray-400);
+}

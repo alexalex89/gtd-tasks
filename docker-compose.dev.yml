@@ -1,0 +1,87 @@
+services:
+  gtd-postgres:
+    container_name: gtd-postgres-dev
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: gtd_tasks
+      POSTGRES_USER: gtd_user
+      POSTGRES_PASSWORD: gtd_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./docker/data/dev-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gtd_user -d gtd_tasks"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gtd-network
+
+  gtd-backend:
+    container_name: gtd-backend-dev
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+      args:
+        PORT: 3742
+    ports:
+      - "3742:3742"
+    environment:
+      - DEBUG=true
+      - NODE_ENV=development
+      - PORT=3742
+      - DB_HOST=gtd-postgres
+      - DB_PORT=5432
+      - DB_NAME=gtd_tasks
+      - DB_USER=gtd_user
+      - DB_PASSWORD=gtd_password
+    depends_on:
+      gtd-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "sh", "-c", "wget --no-verbose --tries=1 --spider http://localhost:3742/api/tasks || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    command: npm run dev
+    networks:
+      - gtd-network
+
+  gtd-frontend:
+    container_name: gtd-frontend-dev
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+      args:
+        PORT: 3000
+    ports:
+      - "3000:3000"
+    environment:
+      - DEBUG=true
+      - NODE_ENV=development
+      - PORT=3000
+      - VITE_API_URL=http://localhost:3742
+    depends_on:
+      gtd-backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "sh", "-c", "wget --no-verbose --tries=1 --spider http://localhost:3000 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: npm run dev -- --host 0.0.0.0
+    networks:
+      - gtd-network
+
+networks:
+  gtd-network:
+    driver: bridge

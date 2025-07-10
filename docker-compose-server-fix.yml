@@ -1,0 +1,59 @@
+services:
+  gtd-postgres:
+    container_name: gtd-postgres
+    image: postgres:15
+    environment:
+      POSTGRES_DB: gtd_tasks
+      POSTGRES_USER: gtd_user
+      POSTGRES_PASSWORD: gtd_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - /mnt/user/docker/gtd-taskapp/db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gtd_user -d gtd_tasks"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  gtd-backend:
+    container_name: gtd-backend
+    build:
+      context: /mnt/user/docker/gtd-tasks/backend
+      args:
+        PORT: ${BACKEND_PORT:-3742}
+    ports:
+      - "${BACKEND_PORT:-3742}:${BACKEND_PORT:-3742}"
+    environment:
+      - DEBUG=true
+      - NODE_ENV=production
+      - PORT=${BACKEND_PORT:-3742}
+      - DB_HOST=gtd-postgres
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME:-gtd_tasks}
+      - DB_USER=${DB_USER:-gtd_user}
+      - DB_PASSWORD=${DB_PASSWORD:-gtd_password}
+    depends_on:
+      gtd-postgres:
+        condition: service_healthy
+    # Remove volume mounts for production to ensure dependencies are available
+    # volumes:
+    #   - /mnt/user/docker/gtd-tasks/backend:/app
+    #   - /app/node_modules
+
+  gtd-frontend:
+    container_name: gtd-frontend
+    build:
+      context: /mnt/user/docker/gtd-tasks/frontend
+      dockerfile: Dockerfile.nginx
+    ports:
+      - "3744:80"
+    environment:
+      - DEBUG=true
+      - NODE_ENV=production
+    depends_on:
+      - gtd-backend
+    # Remove volume mounts for production - use built image
+    # volumes:
+    #   - /mnt/user/docker/gtd-tasks/frontend:/app
+    #   - /app/node_modules

@@ -1,0 +1,81 @@
+services:
+  gtd-postgres:
+    container_name: gtd-postgres
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: gtd_tasks
+      POSTGRES_USER: gtd_user
+      POSTGRES_PASSWORD: gtd_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - /mnt/user/docker/gtd-taskapp/db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gtd_user -d gtd_tasks"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gtd-network
+
+  gtd-backend:
+    container_name: gtd-backend
+    build:
+      context: /mnt/user/docker/gtd-tasks/backend
+      args:
+        PORT: 3742
+    ports:
+      - "3742:3742"
+    environment:
+      - DEBUG=true
+      - NODE_ENV=production
+      - PORT=3742
+      - DB_HOST=gtd-postgres
+      - DB_PORT=5432
+      - DB_NAME=gtd_tasks
+      - DB_USER=gtd_user
+      - DB_PASSWORD=gtd_password
+    depends_on:
+      gtd-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "sh", "-c", "wget --no-verbose --tries=1 --spider http://localhost:3742/api/tasks || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - gtd-network
+
+  gtd-frontend:
+    container_name: gtd-frontend
+    build:
+      context: /mnt/user/docker/gtd-tasks/frontend
+      dockerfile: Dockerfile.nginx
+      args:
+        PORT: 3000
+    ports:
+      - "3744:8080"
+    environment:
+      - DEBUG=true
+      - NODE_ENV=production
+      - PORT=3000
+      - VITE_API_URL=http://XX.XX.XX.XX:3742
+    depends_on:
+      gtd-backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "sh", "-c", "wget --no-verbose --tries=1 --spider http://localhost:8080 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    volumes:
+      - /mnt/user/docker/gtd-tasks/frontend:/app
+      - /app/node_modules
+    networks:
+      - gtd-network
+
+networks:
+  gtd-network:
+    driver: bridge

@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  gtd-postgres:
+    container_name: gtd-postgres
+    image: postgres:15
+    environment:
+      POSTGRES_DB: ${DB_NAME:-gtd_tasks}
+      POSTGRES_USER: ${DB_USER:-gtd_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-gtd_password}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - /mnt/user/docker/gtd-taskapp/db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-gtd_user} -d ${DB_NAME:-gtd_tasks}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  gtd-backend:
+    container_name: gtd-backend
+    build:
+      context: /mnt/user/docker/gtd-tasks/backend
+      args:
+        PORT: ${BACKEND_PORT:-3742}
+    ports:
+      - "${BACKEND_PORT:-3742}:${BACKEND_PORT:-3742}"
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=${BACKEND_PORT:-3742}
+      - DEBUG=${DEBUG:-false}
+      - DB_HOST=gtd-postgres
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME:-gtd_tasks}
+      - DB_USER=${DB_USER:-gtd_user}
+      - DB_PASSWORD=${DB_PASSWORD:-gtd_password}
+    depends_on:
+      gtd-postgres:
+        condition: service_healthy
+    volumes:
+      - /mnt/user/docker/gtd-tasks/backend:/app
+      - /app/node_modules
+    command: ${DEBUG:+npm run dev}
+
+  gtd-frontend:
+    container_name: gtd-frontend
+    build:
+      context: /mnt/user/docker/gtd-tasks/frontend
+      args:
+        PORT: ${FRONTEND_PORT:-3000}
+    ports:
+      - "${FRONTEND_HOST_PORT:-3744}:${FRONTEND_PORT:-3000}"
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=${FRONTEND_PORT:-3000}
+      - DEBUG=${DEBUG:-false}
+      - VITE_API_URL=http://192.168.1.136:${BACKEND_PORT:-3742}
+    depends_on:
+      - gtd-backend
+    volumes:
+      - /mnt/user/docker/gtd-tasks/frontend:/app
+      - /app/node_modules
+    command: ${DEBUG:+npm run dev -- --host 0.0.0.0}
+
+volumes:
+  postgres_data:
