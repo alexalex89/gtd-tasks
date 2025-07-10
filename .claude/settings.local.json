@@ -27,7 +27,12 @@
       "Bash(npm audit:*)",
       "Bash(npm outdated)",
       "Bash(npm run build:*)",
-      "Bash(docker exec:*)"
+      "Bash(docker exec:*)",
+      "Bash(npm test)",
+      "Bash(npm test:*)",
+      "Bash(mv:*)",
+      "Bash(find:*)",
+      "Bash(docker compose:*)"
     ],
     "deny": []
   }
