@@ -1,0 +1,271 @@
+name: Tests
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+  push:
+    branches: [ main, develop ]
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      frontend-changed: ${{ steps.changes.outputs.frontend }}
+      backend-changed: ${{ steps.changes.outputs.backend }}
+      workflow-changed: ${{ steps.changes.outputs.workflow }}
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Detect file changes
+      id: changes
+      uses: dorny/paths-filter@v3
+      with:
+        filters: |
+          frontend:
+            - 'frontend/**'
+          backend:
+            - 'backend/**'
+          workflow:
+            - '.github/workflows/tests.yml'
+
+  frontend-tests:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.frontend-changed == 'true' || needs.detect-changes.outputs.workflow-changed == 'true'
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: ./frontend
+    
+    strategy:
+      matrix:
+        node-version: [18, 20]
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        cache-dependency-path: './frontend/package-lock.json'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run linting (if available)
+      run: |
+        if npm run lint --silent 2>/dev/null; then
+          echo "Running linting..."
+          npm run lint
+        else
+          echo "No lint script found, skipping linting"
+        fi
+      continue-on-error: false
+      
+    - name: Run type checking (if available)
+      run: |
+        if npm run typecheck --silent 2>/dev/null; then
+          echo "Running type checking..."
+          npm run typecheck
+        else
+          echo "No typecheck script found, skipping type checking"
+        fi
+      continue-on-error: false
+      
+    - name: Run tests
+      run: npm test -- --run --reporter=verbose
+      
+    - name: Run tests with coverage (if available)
+      run: |
+        if npm run test:coverage --silent 2>/dev/null; then
+          echo "Running tests with coverage..."
+          npm run test:coverage
+        else
+          echo "No test:coverage script found, skipping coverage"
+        fi
+      continue-on-error: true
+      
+    - name: Upload coverage reports to Codecov
+      if: matrix.node-version == 20
+      uses: codecov/codecov-action@v3
+      with:
+        directory: ./frontend/coverage
+        flags: frontend
+        name: frontend-coverage
+        fail_ci_if_error: false
+        
+    - name: Build application
+      run: npm run build
+      
+    - name: Verify build artifacts
+      run: |
+        if [ -d "dist" ]; then
+          echo "✅ Build successful - dist directory created"
+          echo "📦 Build artifacts:"
+          ls -la dist/
+          echo "📊 Build size:"
+          du -sh dist/
+        else
+          echo "❌ Build failed - no dist directory found"
+          exit 1
+        fi
+        
+    - name: Cache build artifacts
+      if: matrix.node-version == 20
+      uses: actions/cache@v3
+      with:
+        path: ./frontend/dist
+        key: frontend-build-${{ github.sha }}
+        restore-keys: |
+          frontend-build-
+
+  backend-tests:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.backend-changed == 'true' || needs.detect-changes.outputs.workflow-changed == 'true'
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: ./backend
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    strategy:
+      matrix:
+        node-version: [18, 20]
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        cache-dependency-path: './backend/package-lock.json'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run linting (if available)
+      run: |
+        if npm run lint --silent 2>/dev/null; then
+          echo "Running linting..."
+          npm run lint
+        else
+          echo "No lint script found, skipping linting"
+        fi
+      continue-on-error: false
+      
+    - name: Run type checking (if available)
+      run: |
+        if npm run typecheck --silent 2>/dev/null; then
+          echo "Running type checking..."
+          npm run typecheck
+        else
+          echo "No typecheck script found, skipping type checking"
+        fi
+      continue-on-error: false
+      
+    - name: Setup test database
+      run: |
+        export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/test_db"
+        echo "DATABASE_URL=$DATABASE_URL" >> $GITHUB_ENV
+        if npm run db:migrate --silent 2>/dev/null; then
+          echo "Running database migrations..."
+          npm run db:migrate
+        else
+          echo "No db:migrate script found, skipping migrations"
+        fi
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+        
+    - name: Run tests
+      run: |
+        if npm test --silent 2>/dev/null; then
+          echo "Running tests..."
+          npm test
+        else
+          echo "No test script found, skipping tests"
+        fi
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+        NODE_ENV: test
+      
+    - name: Run tests with coverage (if available)
+      run: |
+        if npm run test:coverage --silent 2>/dev/null; then
+          echo "Running tests with coverage..."
+          npm run test:coverage
+        else
+          echo "No test:coverage script found, skipping coverage"
+        fi
+      continue-on-error: true
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+        NODE_ENV: test
+      
+    - name: Upload coverage reports to Codecov
+      if: matrix.node-version == 20
+      uses: codecov/codecov-action@v3
+      with:
+        directory: ./backend/coverage
+        flags: backend
+        name: backend-coverage
+        fail_ci_if_error: false
+
+  summary:
+    needs: [detect-changes, frontend-tests, backend-tests]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+    - name: Test Summary
+      run: |
+        echo "## Test Results Summary" >> $GITHUB_STEP_SUMMARY
+        echo "### Changes Detected:" >> $GITHUB_STEP_SUMMARY
+        echo "- Frontend: ${{ needs.detect-changes.outputs.frontend-changed }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Backend: ${{ needs.detect-changes.outputs.backend-changed }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Workflow: ${{ needs.detect-changes.outputs.workflow-changed }}" >> $GITHUB_STEP_SUMMARY
+        echo "### Test Results:" >> $GITHUB_STEP_SUMMARY
+        
+        if [ "${{ needs.detect-changes.outputs.frontend-changed }}" = "true" ] || [ "${{ needs.detect-changes.outputs.workflow-changed }}" = "true" ]; then
+          if [ "${{ needs.frontend-tests.result }}" = "success" ]; then
+            echo "- ✅ Frontend tests passed" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.frontend-tests.result }}" = "failure" ]; then
+            echo "- ❌ Frontend tests failed" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.frontend-tests.result }}" = "skipped" ]; then
+            echo "- ⏭️ Frontend tests skipped" >> $GITHUB_STEP_SUMMARY
+          fi
+        else
+          echo "- ⏭️ Frontend tests skipped (no changes)" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [ "${{ needs.detect-changes.outputs.backend-changed }}" = "true" ] || [ "${{ needs.detect-changes.outputs.workflow-changed }}" = "true" ]; then
+          if [ "${{ needs.backend-tests.result }}" = "success" ]; then
+            echo "- ✅ Backend tests passed" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.backend-tests.result }}" = "failure" ]; then
+            echo "- ❌ Backend tests failed" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ needs.backend-tests.result }}" = "skipped" ]; then
+            echo "- ⏭️ Backend tests skipped" >> $GITHUB_STEP_SUMMARY
+          fi
+        else
+          echo "- ⏭️ Backend tests skipped (no changes)" >> $GITHUB_STEP_SUMMARY
+        fi

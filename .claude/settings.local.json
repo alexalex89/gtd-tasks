@@ -33,7 +33,8 @@
       "Bash(mv:*)",
       "Bash(find:*)",
       "Bash(docker compose:*)",
-      "Bash(npx jest:*)"
+      "Bash(npx jest:*)",
+      "WebFetch(domain:github.com)"
     ],
     "deny": []
   }
