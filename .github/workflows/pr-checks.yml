@@ -50,17 +50,7 @@ jobs:
           );
           
           const testStatus = '${{ job.status }}' === 'success' ? '✅ PASSED' : '❌ FAILED';
-          const body = `## 🧪 Frontend Test Results
-          
-**Status:** ${testStatus}
-**Commit:** ${context.sha.substring(0, 7)}
-**Node.js:** 20
-
-### Test Summary
-- Tests have been executed for the frontend
-- Build verification completed
-
-_This comment is automatically updated on each push to the PR._`;
+          const body = `## 🧪 Frontend Test Results\n\n**Status:** ${testStatus}\n**Commit:** ${context.sha.substring(0, 7)}\n**Node.js:** 20\n\n### Test Summary\n- Tests have been executed for the frontend\n- Build verification completed\n\n_This comment is automatically updated on each push to the PR._`;
           
           if (botComment) {
             await github.rest.issues.updateComment({
