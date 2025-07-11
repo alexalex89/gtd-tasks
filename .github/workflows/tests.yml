@@ -232,6 +232,31 @@ jobs:
         name: backend-coverage
         fail_ci_if_error: false
 
+  # Status check job that always runs - use this for branch protection
+  status-check:
+    needs: [detect-changes, frontend-tests, backend-tests]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check test results
+      run: |
+        # Check if any required tests failed
+        if [ "${{ needs.detect-changes.outputs.frontend-changed }}" = "true" ] || [ "${{ needs.detect-changes.outputs.workflow-changed }}" = "true" ]; then
+          if [ "${{ needs.frontend-tests.result }}" = "failure" ]; then
+            echo "::error::Frontend tests failed"
+            exit 1
+          fi
+        fi
+        
+        if [ "${{ needs.detect-changes.outputs.backend-changed }}" = "true" ] || [ "${{ needs.detect-changes.outputs.workflow-changed }}" = "true" ]; then
+          if [ "${{ needs.backend-tests.result }}" = "failure" ]; then
+            echo "::error::Backend tests failed"
+            exit 1
+          fi
+        fi
+        
+        echo "✅ All required tests passed or were skipped appropriately"
+
   summary:
     needs: [detect-changes, frontend-tests, backend-tests]
     if: always()
