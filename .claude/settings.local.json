@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(npm install)",
+      "Bash(ls:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(npm start)",
+      "Bash(docker-compose:*)",
+      "Bash(pkill:*)",
+      "Bash(true)",
+      "Bash(npm run dev:*)",
+      "Bash(curl:*)",
+      "Bash(kill:*)",
+      "Bash(colima stop:*)",
+      "Bash(colima start:*)",
+      "Bash(npm install:*)",
+      "Bash(npx tailwindcss init:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(cat:*)",
+      "Bash(node:*)",
+      "Bash(grep:*)",
+      "Bash(rm:*)",
+      "Bash(PORT=3000 npm run dev)",
+      "Bash(docker logs:*)",
+      "Bash(npm update)",
+      "Bash(npm audit:*)",
+      "Bash(npm outdated)",
+      "Bash(npm run build:*)",
+      "Bash(docker exec:*)",
+      "Bash(npm test)",
+      "Bash(npm test:*)",
+      "Bash(mv:*)",
+      "Bash(find:*)",
+      "Bash(docker compose:*)",
+      "Bash(npx jest:*)"
+    ],
+    "deny": []
+  }
+}

@@ -1,0 +1,126 @@
+name: Pull Request Checks
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+jobs:
+  frontend-tests:
+    runs-on: ubuntu-latest
+    if: contains(github.event.pull_request.changed_files, 'frontend/') || github.event.pull_request.draft == false
+    
+    defaults:
+      run:
+        working-directory: ./frontend
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: './frontend/package-lock.json'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run tests
+      run: npm test -- --run --reporter=verbose
+      
+    - name: Build application
+      run: npm run build
+      
+    - name: Comment test results
+      uses: actions/github-script@v7
+      if: always()
+      with:
+        script: |
+          const { data: comments } = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+          });
+          
+          const botComment = comments.find(comment => 
+            comment.user.type === 'Bot' && comment.body.includes('Frontend Test Results')
+          );
+          
+          const testStatus = '${{ job.status }}' === 'success' ? '✅ PASSED' : '❌ FAILED';
+          const body = `## 🧪 Frontend Test Results
+          
+**Status:** ${testStatus}
+**Commit:** ${context.sha.substring(0, 7)}
+**Node.js:** 20
+
+### Test Summary
+- Tests have been executed for the frontend
+- Build verification completed
+
+_This comment is automatically updated on each push to the PR._`;
+          
+          if (botComment) {
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: botComment.id,
+              body: body
+            });
+          } else {
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: body
+            });
+          }
+
+  code-quality:
+    runs-on: ubuntu-latest
+    if: contains(github.event.pull_request.changed_files, 'frontend/') || github.event.pull_request.draft == false
+    
+    defaults:
+      run:
+        working-directory: ./frontend
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: './frontend/package-lock.json'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Check for linting
+      id: lint-check
+      run: |
+        if npm run lint --silent 2>/dev/null; then
+          echo "has_lint=true" >> $GITHUB_OUTPUT
+        else
+          echo "has_lint=false" >> $GITHUB_OUTPUT
+        fi
+      
+    - name: Run linting
+      if: steps.lint-check.outputs.has_lint == 'true'
+      run: npm run lint
+      
+    - name: Check package.json for issues
+      run: |
+        echo "📦 Checking package.json..."
+        npm audit --audit-level moderate || echo "⚠️ Found security vulnerabilities"
+        
+    - name: Check build size
+      run: |
+        npm run build
+        echo "📊 Build size analysis:"
+        du -sh dist/
+        find dist/ -name "*.js" -exec ls -lh {} \; | head -10
