@@ -50,6 +50,12 @@ function GTDApp() {
     // Initial fetch
     fetchTasks();
     
+    // Set up periodic check for overdue tasks (every 5 minutes)
+    const overdueCheckInterval = setInterval(() => {
+      if (DEBUG) console.log('⏰ Periodic check for overdue tasks');
+      fetchTasks(); // This triggers the backend's checkAndMarkOverdueTasks function
+    }, 5 * 60 * 1000); // 5 minutes
+    
     // Set up WebSocket connection
     const removeListener = wsManager.addListener({
       onConnect: () => {
@@ -81,6 +87,7 @@ function GTDApp() {
     wsManager.connect();
     
     return () => {
+      clearInterval(overdueCheckInterval);
       removeListener();
       wsManager.disconnect();
     };
