@@ -35,7 +35,24 @@ function TaskCategory({ category, tasks, onTaskEdit, onTaskDelete, onTaskComplet
   };
 
   const activeTasks = sortTasks(tasks.filter(task => !task.completed));
-  const completedTasks = sortTasks(tasks.filter(task => task.completed));
+  
+  // Filter completed tasks to show only those completed within the last 24 hours
+  const getRecentCompletedTasks = (tasks) => {
+    const now = new Date();
+    const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    
+    return tasks
+      .filter(task => {
+        if (!task.completed) return false;
+        
+        // Use updated_at as the completion time
+        const completedAt = task.updated_at ? new Date(task.updated_at) : null;
+        return completedAt && completedAt >= twentyFourHoursAgo;
+      })
+      .slice(0, 3); // Limit to 3 tasks maximum
+  };
+  
+  const completedTasks = sortTasks(getRecentCompletedTasks(tasks));
   
   return (
     <div className={`rounded-xl shadow-md overflow-hidden transition-all duration-200 hover:shadow-lg ${isDarkMode ? 'bg-slate-800' : 'bg-white'}`}>
@@ -68,7 +85,7 @@ function TaskCategory({ category, tasks, onTaskEdit, onTaskDelete, onTaskComplet
         {completedTasks.length > 0 && (
           <div className={`mt-6 pt-4 border-t ${isDarkMode ? 'border-slate-600' : 'border-slate-200'}`}>
             <h4 className={`text-sm font-medium mb-3 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-              Completed ({completedTasks.length})
+              Recently Completed ({completedTasks.length}/3)
             </h4>
             {completedTasks.map((task) => (
               <TaskCard
